@@ -6,9 +6,16 @@ import struct
 from typing import Awaitable, Dict, Optional, Self
 from dataclasses import dataclass
 
+import serial
+
+import async_serial
+from logger import spr
+
 MSP_MAGIC_OUT = b"$R<"
 MSP_MAGIC_IN = b"$R>"
 MSP_CODE_POLL = 3
+
+MSP_TTY_DEF_BAUDRATE = 250000
 
 def make_msp(code: int, data: bytes = b'') -> bytes:
     ret = bytearray(MSP_MAGIC_OUT)
@@ -126,3 +133,23 @@ class MSPSlave:
     async def do_poll(self, esc_pwm: int) -> PollResponse:
         resp = await self.do_request(MSP_CODE_POLL, make_poll(esc_pwm))
         return PollResponse.from_bytes(resp)
+
+    # TODO
+    # ASYNC rozjebion
+    # TODO
+    @staticmethod
+    async def open_connection(tty: str, baudrate = MSP_TTY_DEF_BAUDRATE) -> 'MSPSlave':
+        s = serial.Serial(port=tty, baudrate = baudrate)
+
+        while True:
+            l = s.readline()
+            print(l)
+            if l == b'Ready\r\n':
+                break
+
+        spr('MSP: Ready')
+
+        r, w = async_serial.wrap_serial(s)
+        m = MSPSlave(r, w)
+        await m.ensure_reader()
+        return m

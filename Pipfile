@@ -8,6 +8,12 @@ pyserial = "*"
 aiohttp = "*"
 typing-extensions = "*"
 websockets = "*"
+aioftp = "*"
+colorist = "*"
+matplotlib = "*"
+bokeh = "*"
+bokeh-sampledata = "*"
+scipy = "*"
 
 [dev-packages]
 

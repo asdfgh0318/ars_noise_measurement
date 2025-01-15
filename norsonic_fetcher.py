@@ -10,7 +10,6 @@ FNAME = '/SD Card/NorMeas/Nor14530408/TEST/VIP 124 2024-12-10 15-31-19/VIP 124 2
 DNAME = '/SD Card/NorMeas/Nor14530408/TEST/VIP 124 2024-12-10 15-31-19/'
 RECORDINGS_PATH = '/SD Card/NorMeas/Nor14530408/TEST'
 CRLF = '\r\n'
-COL_SEPARATOR = '\t'
 STR_DIR = '<DIR>'
 
 def recording_path(rec_name: str) -> str:
@@ -40,32 +39,10 @@ async def ftp_fetch(client: aioftp.Client, path: str) -> bytes:
     stream.close()
     return file
 
-def parse_report_table(table: str):
-    _, head_cols, *rows = table.split(CRLF)
-    cols = head_cols.split(COL_SEPARATOR)
-
-    def parse_row(row: str):
-        vals = row.split(COL_SEPARATOR)
-        if len(vals) != len(cols):
-            print(vals)
-            print(cols)
-            print(len(cols))
-            print(len(vals))
-            raise ValueError('NorPaeser: Invalid row read')
-        return {cols[i]: vals[i] for i in range(len(cols))}
-
-    return [parse_row(r) for r in rows if len(r) > 0]
-
-def parse_report(report: bytes):
-    *header, glob, prof = report.decode().split(2*CRLF)
-    t_prof = parse_report_table(prof)
-    # t_glob = parse_report_table(glob)
-    # return t_glob, t_prof
-    return t_prof
-
-async def nor_get_reports(addr: str, user: str, password: str, recs: Iterable[str]) -> Sequence:
+async def nor_get_reports(addr: str, user: str, password: str, recs: Iterable[str]) -> Sequence[bytes]:
     async with aioftp.Client.context(addr, user=user, password=password, parse_list_line_custom=ftp_parse_line) as ftp:
-        return [parse_report(await ftp_fetch(ftp, recording_path(p))) for p in recs]
+        return [await ftp_fetch(ftp, recording_path(p)) for p in recs]
+
 
 
 async def main():
