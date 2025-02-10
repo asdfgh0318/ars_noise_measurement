@@ -37,11 +37,32 @@ async def ftp_fetch(client: aioftp.Client, path: str) -> bytes:
     file = b''.join([block async for block in stream.iter_by_block()])
     await stream.finish()
     stream.close()
+    # await asyncio.sleep(1)
     return file
 
 async def nor_get_reports(addr: str, user: str, password: str, recs: Iterable[str]) -> Sequence[bytes]:
-    async with aioftp.Client.context(addr, user=user, password=password, parse_list_line_custom=ftp_parse_line) as ftp:
-        return [await ftp_fetch(ftp, recording_path(p)) for p in recs]
+    pass
+    # async with aioftp.Client.context(addr, user=user, password=password, parse_list_line_custom=ftp_parse_line) as ftp:
+    #     return [await ftp_fetch(ftp, recording_path(p)) for p in recs]
+
+    recs_left = list(recs)
+    ret = []
+    while recs_left:
+        spr('Connecting to norsonic FTP...')
+        try:
+            async with aioftp.Client.context(addr, user=user, password=password, parse_list_line_custom=ftp_parse_line) as ftp:
+                while recs_left:
+                    rec = recs_left[0]
+                    report = await ftp_fetch(ftp, recording_path(rec))
+                    del recs_left[0]
+                    ret.append(report)
+
+        except ConnectionResetError:
+            spr('Connection reset!')
+            await asyncio.sleep(2)
+    return ret
+
+
 
 
 

@@ -18,11 +18,15 @@ class OpPointData:
     data_thrust_stand: Sequence[ThrustStandMeasurement]
     raw_nor_report: Optional[bytes]
 
-    @property 
-    def data_accustic(self):
+    @property
+    def nor_report_parsed(self):
         if self.raw_nor_report is None:
             raise ValueError()
         return parse_report(self.raw_nor_report)
+
+    @property 
+    def data_accustic(self):
+        return self.nor_report_parsed.profile
 
     @property
     def data_thrust_stand_avg(self):
@@ -76,7 +80,7 @@ async def meas_series(params: ConnectionParams, pwms: Iterable[int]):
         stand_series_pending = stand.start_meas_series()
         #
         files_nor[pwm] = await norsonic.record(nor)
-        await asyncio.sleep(1)
+        # await asyncio.sleep(8)
         spr(f'Done')
         results_stand[pwm] =  stand.finish_meas_series(stand_series_pending)
         print(results_stand[pwm][0])
