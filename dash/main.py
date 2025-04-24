@@ -44,7 +44,8 @@ def update_analyzer(files):
     # print('dupa')
     # print(files)
     if files:
-        return html.Iframe(src='http://localhost:5000/?'+urlencode({f'f{i}': file for i, file in enumerate(files)}), width='100%', height=800)
+        # return html.Iframe(src='http://localhost:5000/?'+urlencode({f'f{i}': file for i, file in enumerate(files)}), width='100%', height=800)
+        return html.Iframe(src='/viz/?'+urlencode({f'f{i}': file for i, file in enumerate(files)}), width='100%', height=800)
     return dbc.Label("No measurement selected for analysis")
 
 
