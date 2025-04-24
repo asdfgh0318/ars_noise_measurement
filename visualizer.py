@@ -141,7 +141,7 @@ if __name__ == "__main__":
         print(f'- {sys.argv[0]} benchmark1/*')
         exit()
     apps = {'/': Application(FunctionHandler(lambda doc: make_doc(doc, files)))}
-    server = Server(apps, port=5000)
+    server = Server(apps, address='127.0.0.1', port=5000, )
     print('Visualizer started. navigate to http://localhost:5000/ to continue')
     print('Exit with interrupt (Ctrl+C)')
     server.run_until_shutdown()
