@@ -1,15 +1,19 @@
 from dataclasses import fields
+from typing import Callable, cast
 from bokeh.io import curdoc
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, MultiChoice, Select
+from bokeh.models import ColumnDataSource, MultiChoice, Select, Slider, TextInput
 from bokeh.plotting import figure
 import pickle
+from fft import FFTData
+from interpolation import interp_keyed
 from measurement_station import OpPointData
 import math
 from bokeh.server.server import Server
 from bokeh.application import Application
 from bokeh.application.handlers.function import FunctionHandler
 import sys
+import itertools
 
 
 def oppoint_data_src(p: OpPointData) -> dict[str, float]:
@@ -34,15 +38,35 @@ def series_dataclosrc(series: dict[int, OpPointData]) -> ColumnDataSource:
     data = { key: [e[key] for e in entries] for key in keys }
     return ColumnDataSource(data)
 
-def fft_datasrc(op: OpPointData) -> ColumnDataSource:
-    fft_data = op.nor_report_parsed.glob_fft
+def fft_datasrc(fft: FFTData) -> ColumnDataSource:
+    fft_data = fft.data
     freqs = sorted(fft_data.keys())
     vals = [fft_data[f] for f in freqs]
     data = { "FREQ": freqs, "POWER": vals }
     return data
 
+def interp_fft(oppoints: dict[int, OpPointData], key: Callable[[OpPointData], float], x: float) -> FFTData:
+    seq = [oppoints[x] for x in sorted(oppoints.keys())]
+    return interp_keyed(seq, key, lambda op: op.data_fft, x)
+
 
 def make_doc(doc, files):
+
+    # print('aaaaaaa')
+    # print(doc.session_context.request.arguments)
+
+    args = doc.session_context.request.arguments
+
+    print(args)
+    files = []
+    for i in itertools.count():
+        key = f'f{i}'
+        if key in args:
+            files.append(args[key][0].decode())
+        else:
+            break
+
+
     series = [ read_series(f) for f in files ]
     sources = [series_dataclosrc(s) for s in series]
     keys = list(sources[0].data.keys())
@@ -58,6 +82,9 @@ def make_doc(doc, files):
 
     pfft = figure(title='', x_axis_label='X', y_axis_label='Y', tools=['hover', 'pan', 'xwheel_zoom'])
     pfft.sizing_mode = 'scale_both' # type: ignore
+
+    # fftslider = Slider(start=0, end=15, value=1, step=.1, title="fft X")
+    fftslider = TextInput(title = 'fft X')
 
     def update_plot(attr, _, new_values):
         p.renderers = [] # type: ignore
@@ -81,12 +108,15 @@ def make_doc(doc, files):
         p.y_range.end = ymax + margin
 
 
-        pfft.renderers = [] # type: ignore
-        for serie, fname, color in zip(series, files, colors):
-            if fname not in srcsel.value: #type: ignore
-                continue
-            data = fft_datasrc(serie[1500])
-            pfft.line(x='FREQ', y='POWER', source=data, legend_label=f'{fname} FFT', line_width=2, color=color)
+        try:
+            pfft.renderers = [] # type: ignore
+            for serie, fname, color in zip(series, files, colors):
+                if fname not in srcsel.value: #type: ignore
+                    continue
+                data = fft_datasrc(interp_fft(serie, lambda op: oppoint_data_src(op)[xsel.value], float(fftslider.value)))
+                pfft.line(x='FREQ', y='POWER', source=data, legend_label=f'{fname} FFT', line_width=2, color=color)
+        except ValueError:
+            print('Ommiting FFT')
 
 
 
@@ -94,8 +124,9 @@ def make_doc(doc, files):
     multi_choice.on_change('value', update_plot)
     xsel.on_change('value', update_plot)
     srcsel.on_change('value', update_plot)
+    fftslider.on_change('value', update_plot)
 
-    layout = column(column(srcsel, multi_choice, xsel), p, pfft)
+    layout = column(column(srcsel, multi_choice, xsel), p, pfft, fftslider)
     layout.sizing_mode = 'scale_both' # type: ignore
 
     doc.add_root(layout)

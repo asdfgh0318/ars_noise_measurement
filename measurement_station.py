@@ -5,6 +5,7 @@ from logging import debug
 import logging
 from typing import Optional
 
+from fft import FFTData
 from logger import spr
 from norsonic_parser import parse_report
 import thrust_stand
@@ -17,6 +18,7 @@ from thrust_stand import ThrustStand, ThrustStandMeasurement
 class OpPointData:
     data_thrust_stand: Sequence[ThrustStandMeasurement]
     raw_nor_report: Optional[bytes]
+    pwm_setpoint: int
 
     @property
     def nor_report_parsed(self):
@@ -29,19 +31,25 @@ class OpPointData:
         return self.nor_report_parsed.profile
 
     @property
-    def data_thrust_stand_avg(self):
+    def data_thrust_stand_avg(self) -> ThrustStandMeasurement:
         return sum(self.data_thrust_stand, ThrustStandMeasurement.zero())/len(self.data_thrust_stand)
 
     @property
-    def data_accustic_avg(self):
+    def data_accustic_avg(self) -> dict[str, float]:
         return {k: sum(map(float, (row[k] for row in self.data_accustic)))/len(self.data_accustic) for k in self.data_accustic[0].keys() if k != 'Date'}
 
-import sys
-async def ainput(string: str) -> str:
-    await asyncio.get_event_loop().run_in_executor(
-            None, lambda s=string: sys.stdout.write(s+' '))
-    return await asyncio.get_event_loop().run_in_executor(
-            None, sys.stdin.readline)
+    @property
+    def data_fft(self) -> FFTData:
+        return FFTData(self.nor_report_parsed.glob_fft)
+
+
+
+# import sys
+# async def ainput(string: str) -> str:
+#     await asyncio.get_event_loop().run_in_executor(
+#             None, lambda s=string: sys.stdout.write(s+' '))
+#     return await asyncio.get_event_loop().run_in_executor(
+#             None, sys.stdin.readline)
 
 
 @dataclass
